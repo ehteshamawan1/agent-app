@@ -1,0 +1,346 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Paper,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Map as MapIcon,
+  ToggleOn as ToggleOnIcon,
+  ToggleOff as ToggleOffIcon,
+} from '@mui/icons-material';
+import { toast } from 'react-toastify';
+import poleService from '../../services/poleService';
+import zoneService from '../../services/zoneService';
+import { useAuth } from '../../context/AuthContext';
+
+const PoleList = () => {
+  const navigate = useNavigate();
+  const { user, isSuperAdmin } = useAuth();
+  const [poles, setPoles] = useState([]);
+  const [filteredPoles, setFilteredPoles] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedPole, setSelectedPole] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    if (isSuperAdmin()) {
+      fetchZones();
+    }
+    fetchPoles();
+  }, []);
+
+  useEffect(() => {
+    // Filter poles based on selected zone
+    if (selectedZoneFilter === 'all') {
+      setFilteredPoles(poles);
+    } else {
+      setFilteredPoles(poles.filter((pole) => pole.zone_id === parseInt(selectedZoneFilter)));
+    }
+    setPage(0); // Reset to first page when filter changes
+  }, [selectedZoneFilter, poles]);
+
+  const fetchZones = async () => {
+    try {
+      const data = await zoneService.getAll();
+      setZones(data.filter((zone) => zone.status === 'active'));
+    } catch (error) {
+      console.error('Error fetching zones:', error);
+    }
+  };
+
+  const fetchPoles = async () => {
+    setLoading(true);
+    try {
+      const data = await poleService.getAll();
+      setPoles(data);
+      setFilteredPoles(data);
+    } catch (error) {
+      console.error('Error fetching poles:', error);
+      toast.error('Failed to load poles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleToggleStatus = async (pole) => {
+    try {
+      await poleService.toggleStatus(pole.id);
+      toast.success(`Pole ${pole.status === 'active' ? 'deactivated' : 'activated'}`);
+      fetchPoles();
+    } catch (error) {
+      console.error('Error toggling pole status:', error);
+      toast.error('Failed to update pole status');
+    }
+  };
+
+  const handleDeleteClick = (pole) => {
+    setSelectedPole(pole);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    try {
+      await poleService.delete(selectedPole.id);
+      toast.success('Pole deleted successfully');
+      setDeleteDialogOpen(false);
+      setSelectedPole(null);
+      fetchPoles();
+    } catch (error) {
+      console.error('Error deleting pole:', error);
+      const message = error.response?.data?.message || 'Failed to delete pole';
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {/* Page Header */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              Pole Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {isSuperAdmin()
+                ? 'Manage poles across all zones'
+                : `Manage poles in your zone: ${user?.zone?.zone_name}`}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<MapIcon />}
+              onClick={() => navigate('/poles/map')}
+            >
+              View Map
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/poles/create')}
+              size="large"
+            >
+              Add Pole
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Zone Filter (Super Admin Only) */}
+      {isSuperAdmin() && zones.length > 0 && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by Zone</InputLabel>
+              <Select
+                value={selectedZoneFilter}
+                onChange={(e) => setSelectedZoneFilter(e.target.value)}
+                label="Filter by Zone"
+              >
+                <MenuItem value="all">All Zones ({poles.length})</MenuItem>
+                {zones.map((zone) => (
+                  <MenuItem key={zone.id} value={zone.id}>
+                    {zone.zone_name} ({poles.filter((p) => p.zone_id === zone.id).length})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Poles Table */}
+      <Card>
+        <CardContent>
+          {filteredPoles.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" color="text.secondary">
+                {selectedZoneFilter !== 'all'
+                  ? 'No poles found in this zone.'
+                  : 'No poles found. Add your first pole to get started.'}
+              </Typography>
+            </Box>
+          ) : (
+            <><TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Pole Name</strong></TableCell>
+                    <TableCell><strong>Location</strong></TableCell>
+                    <TableCell><strong>Height (m)</strong></TableCell>
+                    <TableCell><strong>Radius (m)</strong></TableCell>
+                    <TableCell><strong>Land Owner</strong></TableCell>
+                    {isSuperAdmin() && <TableCell><strong>Zone</strong></TableCell>}
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell align="right"><strong>Actions</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredPoles
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((pole) => (
+                    <TableRow key={pole.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {pole.pole_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {pole.latitude.toFixed(6)}, {pole.longitude.toFixed(6)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{pole.pole_height}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={pole.restricted_radius}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {pole.land_owner?.owner_name || 'Not assigned'}
+                        </Typography>
+                      </TableCell>
+                      {isSuperAdmin() && (
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {pole.zone?.zone_name || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <Chip
+                          label={pole.status}
+                          color={pole.status === 'active' ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleToggleStatus(pole)}
+                          title={pole.status === 'active' ? 'Deactivate' : 'Activate'}
+                        >
+                          {pole.status === 'active' ? (
+                            <ToggleOnIcon color="success" />
+                          ) : (
+                            <ToggleOffIcon color="disabled" />
+                          )}
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => navigate(`/poles/edit/${pole.id}`)}
+                          title="Edit"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(pole)}
+                          title="Delete"
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={filteredPoles.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => !deleting && setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Pole</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the pole <strong>{selectedPole?.pole_name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
+            {deleting ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default PoleList;
