@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // IMPORTANT: Update this to your backend URL
   // For local development: http://10.0.2.2:8000 (Android emulator)
-  // For production: https://your-domain.com
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // For production: https://api.bsnsolutions.cloud
+  static const String baseUrl = 'https://api.bsnsolutions.cloud/api';
 
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();

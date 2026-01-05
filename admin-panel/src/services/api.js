@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL - update this when backend is deployed
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'https://api.bsnsolutions.cloud/api';
 
 // Create axios instance with default config
 const api = axios.create({
