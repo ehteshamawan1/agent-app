@@ -43,7 +43,10 @@ class AuthController extends Controller
                 'role' => $user->role,
                 'zone_id' => $user->zone_id,
                 'mobile' => $user->mobile,
+                'status' => $user->status,
                 'is_super_admin' => $user->is_super_admin,
+                'created_at' => $user->created_at?->toISOString(),
+                'updated_at' => $user->updated_at?->toISOString(),
             ],
         ]);
     }
