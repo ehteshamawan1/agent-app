@@ -31,3 +31,6 @@ backend/public/hot/
 backend/public/storage/
 backend/storage/*.key
 backend/storage/pail/
+
+# Flutter agent app (local development only)
+tower_agent_app/
