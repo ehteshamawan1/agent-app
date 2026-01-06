@@ -75,6 +75,11 @@ const MapView = () => {
     }
   };
 
+  const isValidCoordinate = (value, min, max) => {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) && parsed >= min && parsed <= max;
+  };
+
   const fetchPoles = async () => {
     setLoading(true);
     try {
@@ -85,13 +90,17 @@ const MapView = () => {
         data = data.filter((pole) => pole.zone_id === parseInt(selectedZoneFilter));
       }
 
-      setPoles(data.filter((pole) => pole.status === 'active'));
+      const activePoles = data.filter((pole) => pole.status === 'active');
+      const safePoles = activePoles.filter((pole) => (
+        isValidCoordinate(pole.latitude, -90, 90) && isValidCoordinate(pole.longitude, -180, 180)
+      ));
+      setPoles(safePoles);
 
       // Set map center to first pole or user's zone center
-      if (data.length > 0) {
+      if (safePoles.length > 0) {
         setMapCenter({
-          lat: parseFloat(data[0].latitude),
-          lng: parseFloat(data[0].longitude),
+          lat: parseFloat(safePoles[0].latitude),
+          lng: parseFloat(safePoles[0].longitude),
         });
       } else if (!isSuperAdmin() && user?.zone?.zone_boundary) {
         const boundary = typeof user.zone.zone_boundary === 'string'
@@ -174,10 +183,18 @@ const MapView = () => {
                       {/* Zone Boundaries */}
                       {showZoneBoundaries &&
                         zones.map((zone) => {
-                          const boundary =
-                            typeof zone.zone_boundary === 'string'
-                              ? JSON.parse(zone.zone_boundary)
-                              : zone.zone_boundary;
+                          let boundary = zone.zone_boundary;
+                          if (typeof boundary === 'string') {
+                            try {
+                              boundary = JSON.parse(boundary);
+                            } catch (error) {
+                              console.warn('Invalid zone boundary for zone:', zone.id);
+                              return null;
+                            }
+                          }
+                          if (!Array.isArray(boundary) || boundary.length === 0) {
+                            return null;
+                          }
                           return (
                             <Polygon
                               key={zone.id}
