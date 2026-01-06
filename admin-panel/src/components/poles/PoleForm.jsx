@@ -215,6 +215,9 @@ const PoleForm = () => {
       longitude: lng.toFixed(8),
     }));
     setMapCenter({ lat, lng });
+    if (mapInstance) {
+      mapInstance.panTo({ lat, lng });
+    }
     setErrors((prev) => ({
       ...prev,
       latitude: '',
@@ -222,19 +225,22 @@ const PoleForm = () => {
       location: '',
     }));
     toast.success('Location selected');
-  }, []);
+  }, [mapInstance]);
 
   const handleMapLoad = useCallback((map) => {
     setMapInstance(map);
-    // Auto-fit bounds to zone boundary if available
-    if (zoneBoundary && zoneBoundary.length > 0) {
-      const bounds = new window.google.maps.LatLngBounds();
-      zoneBoundary.forEach((point) => {
-        bounds.extend(new window.google.maps.LatLng(point.lat, point.lng));
-      });
-      map.fitBounds(bounds);
+  }, []);
+
+  useEffect(() => {
+    if (!mapInstance || !zoneBoundary || zoneBoundary.length === 0) {
+      return;
     }
-  }, [zoneBoundary]);
+    const bounds = new window.google.maps.LatLngBounds();
+    zoneBoundary.forEach((point) => {
+      bounds.extend(new window.google.maps.LatLng(point.lat, point.lng));
+    });
+    mapInstance.fitBounds(bounds);
+  }, [mapInstance, zoneBoundary]);
 
   const validateForm = () => {
     const newErrors = {};
