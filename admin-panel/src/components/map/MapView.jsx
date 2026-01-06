@@ -31,6 +31,7 @@ const MapView = () => {
   const { user, isSuperAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [apiKey, setApiKey] = useState('');
+  const [loadingApiKey, setLoadingApiKey] = useState(true);
   const [poles, setPoles] = useState([]);
   const [zones, setZones] = useState([]);
   const [selectedPole, setSelectedPole] = useState(null);
@@ -39,27 +40,25 @@ const MapView = () => {
   const [showRadius, setShowRadius] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 31.5204, lng: 74.3587 });
   const [mapLoadError, setMapLoadError] = useState(false);
-  const [mapsLoaded, setMapsLoaded] = useState(false);
 
   useEffect(() => {
     fetchApiKey();
     fetchZones();
+  }, []);
+
+  useEffect(() => {
     fetchPoles();
   }, [selectedZoneFilter]);
 
-  useEffect(() => {
-    setMapsLoaded(false);
-    setMapLoadError(false);
-  }, [apiKey]);
-
   const fetchApiKey = async () => {
+    setLoadingApiKey(true);
     try {
       const key = await settingsService.getGoogleMapsApiKey();
-      console.log('Google Maps API Key fetched:', key ? 'Success' : 'Empty');
       setApiKey(key);
     } catch (error) {
       console.error('Error fetching API key:', error);
-      setMapLoadError(true);
+    } finally {
+      setLoadingApiKey(false);
     }
   };
 
@@ -79,18 +78,14 @@ const MapView = () => {
   const fetchPoles = async () => {
     setLoading(true);
     try {
-      console.log('Fetching poles data...');
       let data = await poleService.getAll();
-      console.log('Poles data received:', data ? data.length : 0, 'poles');
 
       // Filter by selected zone for Super Admin
       if (isSuperAdmin() && selectedZoneFilter !== 'all') {
         data = data.filter((pole) => pole.zone_id === parseInt(selectedZoneFilter));
       }
 
-      const activePoles = data.filter((pole) => pole.status === 'active');
-      console.log('Active poles:', activePoles.length);
-      setPoles(activePoles);
+      setPoles(data.filter((pole) => pole.status === 'active'));
 
       // Set map center to first pole or user's zone center
       if (data.length > 0) {
@@ -98,7 +93,6 @@ const MapView = () => {
           lat: parseFloat(data[0].latitude),
           lng: parseFloat(data[0].longitude),
         });
-        console.log('Map center set to first pole');
       } else if (!isSuperAdmin() && user?.zone?.zone_boundary) {
         const boundary = typeof user.zone.zone_boundary === 'string'
           ? JSON.parse(user.zone.zone_boundary)
@@ -108,12 +102,10 @@ const MapView = () => {
             lat: boundary[0].lat,
             lng: boundary[0].lng,
           });
-          console.log('Map center set to zone boundary');
         }
       }
     } catch (error) {
       console.error('Error fetching poles:', error);
-      console.error('Error details:', error.response || error.message);
     } finally {
       setLoading(false);
     }
@@ -155,13 +147,17 @@ const MapView = () => {
         <Grid item xs={12} md={9}>
           <Card>
             <CardContent>
-              {!apiKey ? (
-                <Alert severity="warning">
-                  Google Maps API key not configured. Please configure it in Settings first.
-                </Alert>
-              ) : mapLoadError ? (
+              {mapLoadError ? (
                 <Alert severity="error">
                   Error loading Google Maps. Please check your API key configuration.
+                </Alert>
+              ) : loadingApiKey ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 600 }}>
+                  <CircularProgress />
+                </Box>
+              ) : !apiKey ? (
+                <Alert severity="warning">
+                  Google Maps API key not configured. Please configure it in Settings first.
                 </Alert>
               ) : (
                 <Box sx={{ height: 600, position: 'relative' }}>
@@ -169,7 +165,6 @@ const MapView = () => {
                     key={apiKey}
                     googleMapsApiKey={apiKey}
                     onError={() => setMapLoadError(true)}
-                    onLoad={() => setMapsLoaded(true)}
                   >
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '100%' }}
@@ -273,21 +268,6 @@ const MapView = () => {
                       )}
                     </GoogleMap>
                   </LoadScriptNext>
-                  {!mapsLoaded && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: 'rgba(255,255,255,0.7)',
-                        zIndex: 1,
-                      }}
-                    >
-                      <CircularProgress />
-                    </Box>
-                  )}
                 </Box>
               )}
             </CardContent>
