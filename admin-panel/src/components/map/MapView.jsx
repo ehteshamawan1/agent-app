@@ -14,7 +14,6 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
-  Grid,
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -163,9 +162,15 @@ const MapView = () => {
         </Typography>
       </Paper>
 
-      <Grid container spacing={3}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 320px' },
+          gap: 3,
+        }}
+      >
         {/* Map */}
-        <Grid item xs={12} md={9}>
+        <Box>
           <Card>
             <CardContent>
               {mapLoadError ? (
@@ -309,10 +314,10 @@ const MapView = () => {
               )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Controls and Legend */}
-        <Grid item xs={12} md={3}>
+        <Box>
           {/* Filters */}
           <Card sx={{ mb: 2 }}>
             <CardContent>
@@ -431,8 +436,8 @@ const MapView = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </Box>
   );
 };
