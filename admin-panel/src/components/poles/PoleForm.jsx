@@ -550,6 +550,7 @@ const PoleForm = () => {
                               strokeColor: '#1976D2',
                               strokeWeight: 2,
                               strokeOpacity: 0.8,
+                              clickable: false,
                             }}
                           />
                         )}
