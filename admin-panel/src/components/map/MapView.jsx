@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import {
   Box,
   Card,
@@ -40,6 +40,7 @@ const MapView = () => {
   const [showRadius, setShowRadius] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 31.5204, lng: 74.3587 });
   const [mapLoadError, setMapLoadError] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     fetchApiKey();
@@ -185,9 +186,11 @@ const MapView = () => {
                       mapContainerStyle={{ width: '100%', height: '100%' }}
                       center={mapCenter}
                       zoom={12}
+                      onLoad={() => setMapReady(true)}
+                      onUnmount={() => setMapReady(false)}
                     >
                       {/* Zone Boundaries */}
-                      {showZoneBoundaries &&
+                      {mapReady && showZoneBoundaries &&
                         zones.map((zone) => {
                           let boundary = zone.zone_boundary;
                           if (typeof boundary === 'string') {
@@ -218,8 +221,8 @@ const MapView = () => {
                         })}
 
                       {/* Pole Markers and Radius Circles */}
-                      {poles.map((pole) => (
-                        <div key={pole.id}>
+                      {mapReady && poles.map((pole) => (
+                        <Fragment key={pole.id}>
                           {/* Restricted Radius Circle */}
                           {showRadius && isValidRadius(pole.restricted_radius) && (
                             <Circle
@@ -244,18 +247,8 @@ const MapView = () => {
                               lng: parseFloat(pole.longitude),
                             }}
                             onClick={() => handleMarkerClick(pole)}
-                            icon={window.google?.maps?.SymbolPath?.CIRCLE
-                              ? {
-                                path: window.google.maps.SymbolPath.CIRCLE,
-                                scale: 8,
-                                fillColor: getZoneColor(pole.zone_id),
-                                fillOpacity: 1,
-                                strokeColor: '#FFFFFF',
-                                strokeWeight: 2,
-                              }
-                              : undefined}
                           />
-                        </div>
+                        </Fragment>
                       ))}
 
                       {/* Info Window */}
