@@ -141,6 +141,37 @@ const PoleForm = () => {
     });
   };
 
+  const updateMapFromCoordinates = (latValue, lngValue) => {
+    const lat = parseFloat(latValue);
+    const lng = parseFloat(lngValue);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return;
+    }
+    const newCenter = { lat, lng };
+    setMapCenter(newCenter);
+    if (mapInstance) {
+      mapInstance.panTo(newCenter);
+    }
+  };
+
+  const handleCoordinateChange = (e) => {
+    const { name, value } = e.target;
+    const nextData = {
+      ...formData,
+      [name]: value,
+    };
+    setFormData(nextData);
+    setErrors({
+      ...errors,
+      [name]: '',
+      location: '',
+    });
+    updateMapFromCoordinates(nextData.latitude, nextData.longitude);
+  };
+
   const handleMapClick = useCallback((e) => {
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
@@ -150,6 +181,12 @@ const PoleForm = () => {
       longitude: lng.toFixed(8),
     }));
     setMapCenter({ lat, lng });
+    setErrors((prev) => ({
+      ...prev,
+      latitude: '',
+      longitude: '',
+      location: '',
+    }));
     toast.success('Location selected');
   }, []);
 
@@ -305,6 +342,34 @@ const PoleForm = () => {
 
                 <TextField
                   fullWidth
+                  label="Latitude"
+                  name="latitude"
+                  type="number"
+                  value={formData.latitude}
+                  onChange={handleCoordinateChange}
+                  error={!!errors.latitude}
+                  helperText={errors.latitude || 'Enter a value between -90 and 90'}
+                  required
+                  sx={{ mb: 2 }}
+                  inputProps={{ step: '0.00000001', min: '-90', max: '90' }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Longitude"
+                  name="longitude"
+                  type="number"
+                  value={formData.longitude}
+                  onChange={handleCoordinateChange}
+                  error={!!errors.longitude}
+                  helperText={errors.longitude || 'Enter a value between -180 and 180'}
+                  required
+                  sx={{ mb: 2 }}
+                  inputProps={{ step: '0.00000001', min: '-180', max: '180' }}
+                />
+
+                <TextField
+                  fullWidth
                   label="Restricted Radius (meters)"
                   name="restricted_radius"
                   type="number"
@@ -368,7 +433,7 @@ const PoleForm = () => {
                   Select Location on Map
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Click on the map to set the pole location. The circle shows the restricted radius.
+                  Click on the map or enter coordinates to set the pole location. The circle shows the restricted radius.
                   {zoneBoundary && ' The blue boundary shows your assigned zone.'}
                 </Typography>
 

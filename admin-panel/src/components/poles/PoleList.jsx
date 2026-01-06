@@ -25,6 +25,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,6 +35,7 @@ import {
   Map as MapIcon,
   ToggleOn as ToggleOnIcon,
   ToggleOff as ToggleOffIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import poleService from '../../services/poleService';
@@ -50,6 +53,9 @@ const PoleList = () => {
   const [selectedPole, setSelectedPole] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [selectedZoneFilter, setSelectedZoneFilter] = useState('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+  const [selectedOwnerFilter, setSelectedOwnerFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -61,14 +67,46 @@ const PoleList = () => {
   }, []);
 
   useEffect(() => {
-    // Filter poles based on selected zone
-    if (selectedZoneFilter === 'all') {
-      setFilteredPoles(poles);
-    } else {
-      setFilteredPoles(poles.filter((pole) => pole.zone_id === parseInt(selectedZoneFilter)));
-    }
-    setPage(0); // Reset to first page when filter changes
-  }, [selectedZoneFilter, poles]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const result = poles.filter((pole) => {
+      if (selectedZoneFilter !== 'all' && pole.zone_id !== parseInt(selectedZoneFilter)) {
+        return false;
+      }
+
+      if (selectedStatusFilter !== 'all' && pole.status !== selectedStatusFilter) {
+        return false;
+      }
+
+      if (selectedOwnerFilter !== 'all') {
+        const hasOwner = !!pole.land_owner_id || !!pole.land_owner;
+        if (selectedOwnerFilter === 'assigned' && !hasOwner) {
+          return false;
+        }
+        if (selectedOwnerFilter === 'unassigned' && hasOwner) {
+          return false;
+        }
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const searchableFields = [
+        pole.pole_name,
+        pole.land_owner?.owner_name,
+        pole.zone?.zone_name,
+        pole.latitude,
+        pole.longitude,
+      ]
+        .filter(Boolean)
+        .map((value) => value.toString().toLowerCase());
+
+      return searchableFields.some((value) => value.includes(normalizedSearch));
+    });
+
+    setFilteredPoles(result);
+    setPage(0);
+  }, [selectedZoneFilter, selectedStatusFilter, selectedOwnerFilter, searchTerm, poles]);
 
   const fetchZones = async () => {
     try {
@@ -178,28 +216,76 @@ const PoleList = () => {
         </Box>
       </Paper>
 
-      {/* Zone Filter (Super Admin Only) */}
-      {isSuperAdmin() && zones.length > 0 && (
-        <Card sx={{ mb: 2 }}>
-          <CardContent>
+      {/* Filters */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <TextField
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search poles, owners, zones, or coordinates..."
+              label="Search"
+              sx={{ minWidth: 260, flex: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            {isSuperAdmin() && zones.length > 0 && (
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>Filter by Zone</InputLabel>
+                <Select
+                  value={selectedZoneFilter}
+                  onChange={(e) => setSelectedZoneFilter(e.target.value)}
+                  label="Filter by Zone"
+                >
+                  <MenuItem value="all">All Zones ({poles.length})</MenuItem>
+                  {zones.map((zone) => (
+                    <MenuItem key={zone.id} value={zone.id}>
+                      {zone.zone_name} ({poles.filter((p) => p.zone_id === zone.id).length})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Filter by Zone</InputLabel>
+              <InputLabel>Filter by Status</InputLabel>
               <Select
-                value={selectedZoneFilter}
-                onChange={(e) => setSelectedZoneFilter(e.target.value)}
-                label="Filter by Zone"
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                label="Filter by Status"
               >
-                <MenuItem value="all">All Zones ({poles.length})</MenuItem>
-                {zones.map((zone) => (
-                  <MenuItem key={zone.id} value={zone.id}>
-                    {zone.zone_name} ({poles.filter((p) => p.zone_id === zone.id).length})
-                  </MenuItem>
-                ))}
+                <MenuItem value="all">All Statuses ({poles.length})</MenuItem>
+                <MenuItem value="active">
+                  Active ({poles.filter((p) => p.status === 'active').length})
+                </MenuItem>
+                <MenuItem value="inactive">
+                  Inactive ({poles.filter((p) => p.status === 'inactive').length})
+                </MenuItem>
               </Select>
             </FormControl>
-          </CardContent>
-        </Card>
-      )}
+            <FormControl sx={{ minWidth: 220 }}>
+              <InputLabel>Filter by Land Owner</InputLabel>
+              <Select
+                value={selectedOwnerFilter}
+                onChange={(e) => setSelectedOwnerFilter(e.target.value)}
+                label="Filter by Land Owner"
+              >
+                <MenuItem value="all">All Poles ({poles.length})</MenuItem>
+                <MenuItem value="assigned">
+                  Assigned ({poles.filter((p) => p.land_owner_id || p.land_owner).length})
+                </MenuItem>
+                <MenuItem value="unassigned">
+                  Unassigned ({poles.filter((p) => !p.land_owner_id && !p.land_owner).length})
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Poles Table */}
       <Card>

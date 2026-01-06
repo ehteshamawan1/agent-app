@@ -20,6 +20,12 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,6 +35,7 @@ import {
   ToggleOn as ToggleOnIcon,
   ToggleOff as ToggleOffIcon,
   Visibility as VisibilityIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import zoneService from '../../services/zoneService';
@@ -40,6 +47,8 @@ const ZoneList = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedZone, setSelectedZone] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchZones();
@@ -91,6 +100,27 @@ const ZoneList = () => {
     }
   };
 
+  const filteredZones = zones.filter((zone) => {
+    if (statusFilter !== 'all' && zone.status !== statusFilter) {
+      return false;
+    }
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    const searchableFields = [
+      zone.zone_name,
+      zone.description,
+      zone.creator?.name,
+    ]
+      .filter(Boolean)
+      .map((value) => value.toString().toLowerCase());
+
+    return searchableFields.some((value) => value.includes(normalizedSearch));
+  });
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -123,13 +153,53 @@ const ZoneList = () => {
         </Box>
       </Paper>
 
+      {/* Filters */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <TextField
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search zones, descriptions, or creators..."
+              label="Search"
+              sx={{ minWidth: 260, flex: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by Status</InputLabel>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                label="Filter by Status"
+              >
+                <MenuItem value="all">All Statuses ({zones.length})</MenuItem>
+                <MenuItem value="active">
+                  Active ({zones.filter((zone) => zone.status === 'active').length})
+                </MenuItem>
+                <MenuItem value="inactive">
+                  Inactive ({zones.filter((zone) => zone.status === 'inactive').length})
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* Zones Table */}
       <Card>
         <CardContent>
-          {zones.length === 0 ? (
+          {filteredZones.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="body1" color="text.secondary">
-                No zones created yet. Create your first zone to get started.
+                {zones.length === 0
+                  ? 'No zones created yet. Create your first zone to get started.'
+                  : 'No zones match the current filters.'}
               </Typography>
             </Box>
           ) : (
@@ -146,7 +216,7 @@ const ZoneList = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {zones.map((zone) => (
+                  {filteredZones.map((zone) => (
                     <TableRow key={zone.id} hover>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>

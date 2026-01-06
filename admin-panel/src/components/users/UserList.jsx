@@ -26,6 +26,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,6 +35,7 @@ import {
   Delete as DeleteIcon,
   ToggleOn as ToggleOnIcon,
   ToggleOff as ToggleOffIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import userService from '../../services/userService';
@@ -48,6 +51,7 @@ const UserList = () => {
   const [deleting, setDeleting] = useState(false);
   const [filterTab, setFilterTab] = useState('all'); // all, super_admin, admin, agent
   const [selectedZoneFilter, setSelectedZoneFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -149,6 +153,22 @@ const UserList = () => {
       return user.zone_id === parseInt(selectedZoneFilter);
     }
 
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (normalizedSearch) {
+      const searchableFields = [
+        user.name,
+        user.email,
+        user.mobile,
+        user.zone?.zone_name,
+      ]
+        .filter(Boolean)
+        .map((value) => value.toString().toLowerCase());
+
+      if (!searchableFields.some((value) => value.includes(normalizedSearch))) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -183,6 +203,26 @@ const UserList = () => {
           </Button>
         </Box>
       </Paper>
+
+      {/* Search */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <TextField
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search users by name, email, mobile, or zone..."
+            label="Search"
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </CardContent>
+      </Card>
 
       {/* Filter Tabs */}
       <Card sx={{ mb: 2 }}>
