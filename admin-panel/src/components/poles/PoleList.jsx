@@ -239,7 +239,7 @@ const PoleList = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {pole.latitude.toFixed(6)}, {pole.longitude.toFixed(6)}
+                          {parseFloat(pole.latitude).toFixed(6)}, {parseFloat(pole.longitude).toFixed(6)}
                         </Typography>
                       </TableCell>
                       <TableCell>
