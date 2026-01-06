@@ -21,7 +21,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import { GoogleMap, LoadScript, Marker, Circle, Polygon, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, LoadScriptNext, Marker, Circle, Polygon, InfoWindow } from '@react-google-maps/api';
 import poleService from '../../services/poleService';
 import zoneService from '../../services/zoneService';
 import settingsService from '../../services/settingsService';
@@ -38,12 +38,19 @@ const MapView = () => {
   const [showZoneBoundaries, setShowZoneBoundaries] = useState(true);
   const [showRadius, setShowRadius] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 31.5204, lng: 74.3587 });
+  const [mapLoadError, setMapLoadError] = useState(false);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
 
   useEffect(() => {
     fetchApiKey();
     fetchZones();
     fetchPoles();
   }, [selectedZoneFilter]);
+
+  useEffect(() => {
+    setMapsLoaded(false);
+    setMapLoadError(false);
+  }, [apiKey]);
 
   const fetchApiKey = async () => {
     try {
@@ -86,7 +93,9 @@ const MapView = () => {
           lng: parseFloat(data[0].longitude),
         });
       } else if (!isSuperAdmin() && user?.zone?.zone_boundary) {
-        const boundary = JSON.parse(user.zone.zone_boundary);
+        const boundary = typeof user.zone.zone_boundary === 'string'
+          ? JSON.parse(user.zone.zone_boundary)
+          : user.zone.zone_boundary;
         if (boundary.length > 0) {
           setMapCenter({
             lat: boundary[0].lat,
@@ -141,9 +150,17 @@ const MapView = () => {
                 <Alert severity="warning">
                   Google Maps API key not configured. Please configure it in Settings first.
                 </Alert>
+              ) : mapLoadError ? (
+                <Alert severity="error">
+                  Error loading Google Maps. Please check your API key configuration.
+                </Alert>
               ) : (
                 <Box sx={{ height: 600, position: 'relative' }}>
-                  <LoadScript googleMapsApiKey={apiKey}>
+                  <LoadScriptNext
+                    googleMapsApiKey={apiKey}
+                    onError={() => setMapLoadError(true)}
+                    onLoad={() => setMapsLoaded(true)}
+                  >
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '100%' }}
                       center={mapCenter}
@@ -198,14 +215,16 @@ const MapView = () => {
                               lng: parseFloat(pole.longitude),
                             }}
                             onClick={() => handleMarkerClick(pole)}
-                            icon={{
-                              path: window.google?.maps?.SymbolPath?.CIRCLE,
-                              scale: 8,
-                              fillColor: getZoneColor(pole.zone_id),
-                              fillOpacity: 1,
-                              strokeColor: '#FFFFFF',
-                              strokeWeight: 2,
-                            }}
+                            icon={window.google?.maps?.SymbolPath?.CIRCLE
+                              ? {
+                                path: window.google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: getZoneColor(pole.zone_id),
+                                fillOpacity: 1,
+                                strokeColor: '#FFFFFF',
+                                strokeWeight: 2,
+                              }
+                              : undefined}
                           />
                         </div>
                       ))}
@@ -243,7 +262,22 @@ const MapView = () => {
                         </InfoWindow>
                       )}
                     </GoogleMap>
-                  </LoadScript>
+                  </LoadScriptNext>
+                  {!mapsLoaded && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'rgba(255,255,255,0.7)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CircularProgress />
+                    </Box>
+                  )}
                 </Box>
               )}
             </CardContent>
