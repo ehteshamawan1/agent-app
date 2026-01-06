@@ -162,9 +162,15 @@ const ZoneDetail = () => {
         </Box>
       </Paper>
 
-      <Grid container spacing={3}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 360px' },
+          gap: 3,
+        }}
+      >
         {/* Zone Map */}
-        <Grid item xs={12} md={8}>
+        <Box>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -175,10 +181,10 @@ const ZoneDetail = () => {
                   Google Maps API key not configured. Please configure it in Settings first.
                 </Alert>
               ) : (
-                <Box sx={{ height: 500, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Box sx={{ minHeight: 520, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                   <LoadScript googleMapsApiKey={apiKey}>
                     <GoogleMap
-                      mapContainerStyle={{ width: '100%', height: '100%' }}
+                      mapContainerStyle={{ width: '100%', height: '520px' }}
                       center={mapCenter}
                       zoom={12}
                     >
@@ -198,10 +204,10 @@ const ZoneDetail = () => {
               )}
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Zone Information */}
-        <Grid item xs={12} md={4}>
+        <Box>
           <Card sx={{ mb: 2 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -275,15 +281,15 @@ const ZoneDetail = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
+      </Box>
 
-        {/* Assigned Users Table */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Users in This Zone
-              </Typography>
+      {/* Assigned Users Table */}
+      <Card>
+        <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Users in This Zone
+            </Typography>
 
               {users.length === 0 ? (
                 <Alert severity="info">No users assigned to this zone yet.</Alert>
@@ -333,10 +339,8 @@ const ZoneDetail = () => {
                   </Table>
                 </TableContainer>
               )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        </CardContent>
+      </Card>
     </Box>
   );
 };
