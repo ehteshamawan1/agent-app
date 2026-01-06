@@ -143,14 +143,6 @@ const MapView = () => {
     setSelectedPole(pole);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       {/* Page Header */}
@@ -300,6 +292,21 @@ const MapView = () => {
                       )}
                     </GoogleMap>
                   </LoadScriptNext>
+                  {loading && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'rgba(255,255,255,0.7)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CircularProgress />
+                    </Box>
+                  )}
                 </Box>
               )}
             </CardContent>
