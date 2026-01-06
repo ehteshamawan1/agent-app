@@ -27,6 +27,11 @@ import zoneService from '../../services/zoneService';
 import settingsService from '../../services/settingsService';
 import { useAuth } from '../../context/AuthContext';
 
+const mapContainerStyle = {
+  width: '100%',
+  height: '600px',
+};
+
 const MapView = () => {
   const { user, isSuperAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -176,14 +181,14 @@ const MapView = () => {
                   Google Maps API key not configured. Please configure it in Settings first.
                 </Alert>
               ) : (
-                <Box sx={{ height: 600, position: 'relative' }}>
+                <Box sx={{ minHeight: 600, position: 'relative' }}>
                   <LoadScriptNext
                     key={apiKey}
                     googleMapsApiKey={apiKey}
                     onError={() => setMapLoadError(true)}
                   >
                     <GoogleMap
-                      mapContainerStyle={{ width: '100%', height: '100%' }}
+                      mapContainerStyle={mapContainerStyle}
                       center={mapCenter}
                       zoom={12}
                       onLoad={() => setMapReady(true)}
