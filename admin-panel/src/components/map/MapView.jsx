@@ -80,6 +80,20 @@ const MapView = () => {
     return Number.isFinite(parsed) && parsed >= min && parsed <= max;
   };
 
+  const sanitizeBoundary = (boundary) => {
+    if (!Array.isArray(boundary)) {
+      return [];
+    }
+    return boundary.filter((point) => (
+      isValidCoordinate(point?.lat, -90, 90) && isValidCoordinate(point?.lng, -180, 180)
+    ));
+  };
+
+  const isValidRadius = (value) => {
+    const radius = parseFloat(value);
+    return Number.isFinite(radius) && radius > 0;
+  };
+
   const fetchPoles = async () => {
     setLoading(true);
     try {
@@ -192,13 +206,14 @@ const MapView = () => {
                               return null;
                             }
                           }
-                          if (!Array.isArray(boundary) || boundary.length === 0) {
+                          const sanitizedBoundary = sanitizeBoundary(boundary);
+                          if (sanitizedBoundary.length < 3) {
                             return null;
                           }
                           return (
                             <Polygon
                               key={zone.id}
-                              paths={boundary}
+                              paths={sanitizedBoundary}
                               options={{
                                 fillColor: getZoneColor(zone.id),
                                 fillOpacity: 0.1,
@@ -214,7 +229,7 @@ const MapView = () => {
                       {poles.map((pole) => (
                         <div key={pole.id}>
                           {/* Restricted Radius Circle */}
-                          {showRadius && (
+                          {showRadius && isValidRadius(pole.restricted_radius) && (
                             <Circle
                               center={{
                                 lat: parseFloat(pole.latitude),
