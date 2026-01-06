@@ -55,9 +55,11 @@ const MapView = () => {
   const fetchApiKey = async () => {
     try {
       const key = await settingsService.getGoogleMapsApiKey();
+      console.log('Google Maps API Key fetched:', key ? 'Success' : 'Empty');
       setApiKey(key);
     } catch (error) {
       console.error('Error fetching API key:', error);
+      setMapLoadError(true);
     }
   };
 
@@ -77,14 +79,18 @@ const MapView = () => {
   const fetchPoles = async () => {
     setLoading(true);
     try {
+      console.log('Fetching poles data...');
       let data = await poleService.getAll();
+      console.log('Poles data received:', data ? data.length : 0, 'poles');
 
       // Filter by selected zone for Super Admin
       if (isSuperAdmin() && selectedZoneFilter !== 'all') {
         data = data.filter((pole) => pole.zone_id === parseInt(selectedZoneFilter));
       }
 
-      setPoles(data.filter((pole) => pole.status === 'active'));
+      const activePoles = data.filter((pole) => pole.status === 'active');
+      console.log('Active poles:', activePoles.length);
+      setPoles(activePoles);
 
       // Set map center to first pole or user's zone center
       if (data.length > 0) {
@@ -92,6 +98,7 @@ const MapView = () => {
           lat: parseFloat(data[0].latitude),
           lng: parseFloat(data[0].longitude),
         });
+        console.log('Map center set to first pole');
       } else if (!isSuperAdmin() && user?.zone?.zone_boundary) {
         const boundary = typeof user.zone.zone_boundary === 'string'
           ? JSON.parse(user.zone.zone_boundary)
@@ -101,10 +108,12 @@ const MapView = () => {
             lat: boundary[0].lat,
             lng: boundary[0].lng,
           });
+          console.log('Map center set to zone boundary');
         }
       }
     } catch (error) {
       console.error('Error fetching poles:', error);
+      console.error('Error details:', error.response || error.message);
     } finally {
       setLoading(false);
     }
@@ -157,6 +166,7 @@ const MapView = () => {
               ) : (
                 <Box sx={{ height: 600, position: 'relative' }}>
                   <LoadScriptNext
+                    key={apiKey}
                     googleMapsApiKey={apiKey}
                     onError={() => setMapLoadError(true)}
                     onLoad={() => setMapsLoaded(true)}
