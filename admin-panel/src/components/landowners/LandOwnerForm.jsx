@@ -10,6 +10,10 @@ import {
   Paper,
   Grid,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -17,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import landOwnerService from '../../services/landOwnerService';
+import zoneService from '../../services/zoneService';
 import { useAuth } from '../../context/AuthContext';
 
 const LandOwnerForm = () => {
@@ -27,19 +32,38 @@ const LandOwnerForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [zones, setZones] = useState([]);
   const [formData, setFormData] = useState({
     owner_name: '',
     mobile_number: '',
     address: '',
     notes: '',
+    zone_id: '',
   });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    if (isSuperAdmin()) {
+      fetchZones();
+    }
     if (isEditMode) {
       fetchLandOwner();
+    } else if (!isSuperAdmin() && user?.zone_id) {
+      setFormData((prev) => ({
+        ...prev,
+        zone_id: user.zone_id,
+      }));
     }
   }, [id]);
+
+  const fetchZones = async () => {
+    try {
+      const data = await zoneService.getAll();
+      setZones(data.filter((zone) => zone.status === 'active'));
+    } catch (error) {
+      console.error('Error fetching zones:', error);
+    }
+  };
 
   const fetchLandOwner = async () => {
     setLoading(true);
@@ -50,6 +74,7 @@ const LandOwnerForm = () => {
         mobile_number: data.mobile_number,
         address: data.address,
         notes: data.notes || '',
+        zone_id: data.zone_id || '',
       });
     } catch (error) {
       console.error('Error fetching land owner:', error);
@@ -79,6 +104,10 @@ const LandOwnerForm = () => {
       newErrors.owner_name = 'Owner name is required';
     }
 
+    if (isSuperAdmin() && !formData.zone_id) {
+      newErrors.zone_id = 'Zone is required for super admin';
+    }
+
     if (!formData.mobile_number.trim()) {
       newErrors.mobile_number = 'Mobile number is required';
     }
@@ -104,6 +133,7 @@ const LandOwnerForm = () => {
       const payload = {
         ...formData,
         notes: formData.notes || null,
+        zone_id: isSuperAdmin() ? parseInt(formData.zone_id, 10) : user?.zone_id,
       };
 
       if (isEditMode) {
@@ -178,6 +208,37 @@ const LandOwnerForm = () => {
                   placeholder="e.g., Muhammad Ahmed"
                 />
               </Grid>
+
+              {isSuperAdmin() && (
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth error={!!errors.zone_id}>
+                    <InputLabel>Zone</InputLabel>
+                    <Select
+                      name="zone_id"
+                      value={formData.zone_id}
+                      onChange={handleChange}
+                      label="Zone"
+                    >
+                      {zones.length === 0 ? (
+                        <MenuItem value="" disabled>
+                          No zones available
+                        </MenuItem>
+                      ) : (
+                        zones.map((zone) => (
+                          <MenuItem key={zone.id} value={zone.id}>
+                            {zone.zone_name}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                    {errors.zone_id && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                        {errors.zone_id}
+                      </Typography>
+                    )}
+                  </FormControl>
+                </Grid>
+              )}
 
               <Grid item xs={12} md={6}>
                 <TextField

@@ -41,6 +41,7 @@ const PoleForm = () => {
   const [loadingApiKey, setLoadingApiKey] = useState(true);
   const [mapLoadError, setMapLoadError] = useState(false);
   const [landOwners, setLandOwners] = useState([]);
+  const [zones, setZones] = useState([]);
   const [zoneBoundary, setZoneBoundary] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [formData, setFormData] = useState({
@@ -50,6 +51,7 @@ const PoleForm = () => {
     pole_height: '',
     restricted_radius: '500',
     land_owner_id: '',
+    zone_id: '',
   });
   const [mapCenter, setMapCenter] = useState({ lat: 31.5204, lng: 74.3587 }); // Default: Lahore
   const [errors, setErrors] = useState({});
@@ -57,11 +59,21 @@ const PoleForm = () => {
   useEffect(() => {
     fetchApiKey();
     fetchLandOwners();
-    fetchZoneBoundary();
+    fetchZones();
     if (isEditMode) {
       fetchPole();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!isSuperAdmin() && user?.zone_id) {
+      setFormData((prev) => ({
+        ...prev,
+        zone_id: user.zone_id,
+      }));
+      fetchZoneBoundary(user.zone_id);
+    }
+  }, [user, isSuperAdmin]);
 
   const fetchApiKey = async () => {
     try {
@@ -75,6 +87,17 @@ const PoleForm = () => {
     }
   };
 
+  const fetchZones = async () => {
+    if (isSuperAdmin()) {
+      try {
+        const data = await zoneService.getAll();
+        setZones(data.filter((zone) => zone.status === 'active'));
+      } catch (error) {
+        console.error('Error fetching zones:', error);
+      }
+    }
+  };
+
   const fetchLandOwners = async () => {
     try {
       const data = await landOwnerService.getAll();
@@ -85,22 +108,25 @@ const PoleForm = () => {
     }
   };
 
-  const fetchZoneBoundary = async () => {
-    // Only fetch zone boundary for regular admins (not super admin)
-    if (!isSuperAdmin() && user?.zone_id) {
-      try {
-        const zoneData = await zoneService.getById(user.zone_id);
-        if (zoneData.zone_boundary) {
-          setZoneBoundary(zoneData.zone_boundary);
-          // Set map center to zone if no pole location yet
-          if (!formData.latitude && !formData.longitude && zoneData.zone_boundary.length > 0) {
-            const firstPoint = zoneData.zone_boundary[0];
-            setMapCenter({ lat: firstPoint.lat, lng: firstPoint.lng });
-          }
+  const fetchZoneBoundary = async (zoneId) => {
+    if (!zoneId) {
+      setZoneBoundary(null);
+      return;
+    }
+    try {
+      const zoneData = await zoneService.getById(zoneId);
+      if (zoneData.zone_boundary) {
+        const boundary = typeof zoneData.zone_boundary === 'string'
+          ? JSON.parse(zoneData.zone_boundary)
+          : zoneData.zone_boundary;
+        setZoneBoundary(boundary);
+        if (!formData.latitude && !formData.longitude && boundary.length > 0) {
+          const firstPoint = boundary[0];
+          setMapCenter({ lat: firstPoint.lat, lng: firstPoint.lng });
         }
-      } catch (error) {
-        console.error('Error fetching zone boundary:', error);
       }
+    } catch (error) {
+      console.error('Error fetching zone boundary:', error);
     }
   };
 
@@ -115,7 +141,11 @@ const PoleForm = () => {
         pole_height: data.pole_height,
         restricted_radius: data.restricted_radius,
         land_owner_id: data.land_owner_id || '',
+        zone_id: data.zone_id || '',
       });
+      if (data.zone_id) {
+        fetchZoneBoundary(data.zone_id);
+      }
       setMapCenter({
         lat: parseFloat(data.latitude),
         lng: parseFloat(data.longitude),
@@ -131,14 +161,18 @@ const PoleForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
+    const nextData = {
       ...formData,
       [name]: value,
-    });
+    };
+    setFormData(nextData);
     setErrors({
       ...errors,
       [name]: '',
     });
+    if (name === 'zone_id') {
+      fetchZoneBoundary(value);
+    }
   };
 
   const updateMapFromCoordinates = (latValue, lngValue) => {
@@ -209,6 +243,10 @@ const PoleForm = () => {
       newErrors.pole_name = 'Pole name is required';
     }
 
+    if (isSuperAdmin() && !formData.zone_id) {
+      newErrors.zone_id = 'Zone is required for super admin';
+    }
+
     if (!formData.latitude || !formData.longitude) {
       newErrors.location = 'Please select a location on the map';
     } else {
@@ -252,6 +290,7 @@ const PoleForm = () => {
         pole_height: parseFloat(formData.pole_height),
         restricted_radius: parseFloat(formData.restricted_radius),
         land_owner_id: formData.land_owner_id || null,
+        zone_id: isSuperAdmin() ? parseInt(formData.zone_id, 10) : user?.zone_id,
       };
 
       if (isEditMode) {
@@ -340,6 +379,36 @@ const PoleForm = () => {
                   inputProps={{ step: '0.1', min: '0' }}
                 />
 
+                {isSuperAdmin() && (
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Zone</InputLabel>
+                    <Select
+                      name="zone_id"
+                      value={formData.zone_id}
+                      onChange={handleChange}
+                      label="Zone"
+                      error={!!errors.zone_id}
+                    >
+                      {zones.length === 0 ? (
+                        <MenuItem value="" disabled>
+                          No zones available
+                        </MenuItem>
+                      ) : (
+                        zones.map((zone) => (
+                          <MenuItem key={zone.id} value={zone.id}>
+                            {zone.zone_name}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                    {errors.zone_id && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                        {errors.zone_id}
+                      </Typography>
+                    )}
+                  </FormControl>
+                )}
+
                 <TextField
                   fullWidth
                   label="Latitude"
@@ -391,11 +460,13 @@ const PoleForm = () => {
                     label="Land Owner (Optional)"
                   >
                     <MenuItem value="">None</MenuItem>
-                    {landOwners.map((owner) => (
-                      <MenuItem key={owner.id} value={owner.id}>
-                        {owner.owner_name}
-                      </MenuItem>
-                    ))}
+                    {landOwners
+                      .filter((owner) => !isSuperAdmin() || !formData.zone_id || owner.zone_id === parseInt(formData.zone_id, 10))
+                      .map((owner) => (
+                        <MenuItem key={owner.id} value={owner.id}>
+                          {owner.owner_name}
+                        </MenuItem>
+                      ))}
                   </Select>
                 </FormControl>
 
@@ -434,7 +505,7 @@ const PoleForm = () => {
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Click on the map or enter coordinates to set the pole location. The circle shows the restricted radius.
-                  {zoneBoundary && ' The blue boundary shows your assigned zone.'}
+                  {zoneBoundary && ' The blue boundary shows the selected zone.'}
                 </Typography>
 
                 {mapLoadError ? (
