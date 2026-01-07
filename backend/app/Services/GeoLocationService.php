@@ -86,7 +86,10 @@ class GeoLocationService
                 'pole_name' => $pole->pole_name,
                 'latitude' => $pole->latitude,
                 'longitude' => $pole->longitude,
+                'pole_height' => $pole->pole_height,
                 'restricted_radius' => $pole->restricted_radius,
+                'status' => $pole->status,
+                'zone_id' => $pole->zone_id,
                 'distance' => round($distance, 2),
                 'is_restricted' => $distance <= $pole->restricted_radius,
             ];
@@ -148,7 +151,10 @@ class GeoLocationService
                 'pole_name' => $pole->pole_name,
                 'latitude' => $pole->latitude,
                 'longitude' => $pole->longitude,
+                'pole_height' => $pole->pole_height,
                 'restricted_radius' => $pole->restricted_radius,
+                'status' => $pole->status,
+                'zone_id' => $pole->zone_id,
                 'distance' => round($distance, 2),
                 'is_restricted' => $distance <= $pole->restricted_radius,
             ];

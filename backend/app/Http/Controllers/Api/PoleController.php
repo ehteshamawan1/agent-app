@@ -69,6 +69,18 @@ class PoleController extends Controller
             return response()->json(['message' => 'Pole coordinates must be within zone boundary'], 422);
         }
 
+        $overlapPole = $this->findOverlappingPole(
+            $validated['zone_id'],
+            $validated['latitude'],
+            $validated['longitude'],
+            $validated['restricted_radius']
+        );
+        if ($overlapPole) {
+            return response()->json([
+                'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
+            ], 422);
+        }
+
         $pole = Pole::create([
             'pole_name' => $validated['pole_name'],
             'latitude' => $validated['latitude'],
@@ -131,6 +143,22 @@ class PoleController extends Controller
             if (!$isInZone) {
                 return response()->json(['message' => 'Pole coordinates must be within zone boundary'], 422);
             }
+        }
+
+        $newLatitude = $validated['latitude'] ?? $pole->latitude;
+        $newLongitude = $validated['longitude'] ?? $pole->longitude;
+        $newRadius = $validated['restricted_radius'] ?? $pole->restricted_radius;
+        $overlapPole = $this->findOverlappingPole(
+            $pole->zone_id,
+            $newLatitude,
+            $newLongitude,
+            $newRadius,
+            $pole->id
+        );
+        if ($overlapPole) {
+            return response()->json([
+                'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
+            ], 422);
         }
 
         $pole->update($validated);
@@ -255,7 +283,7 @@ class PoleController extends Controller
         $poles = Cache::remember("active_poles_zone_{$user->zone_id}", 300, function () use ($user) {
             return Pole::where('zone_id', $user->zone_id)
                 ->where('status', 'active')
-                ->select(['id', 'pole_name', 'latitude', 'longitude', 'restricted_radius', 'status'])
+                ->select(['id', 'pole_name', 'latitude', 'longitude', 'pole_height', 'restricted_radius', 'status', 'zone_id', 'land_owner_id'])
                 ->get();
         });
 
@@ -276,5 +304,35 @@ class PoleController extends Controller
     {
         Cache::forget("zone_{$zoneId}");
         Cache::forget("active_poles_zone_{$zoneId}");
+    }
+
+    private function findOverlappingPole($zoneId, $latitude, $longitude, $restrictedRadius, $ignorePoleId = null)
+    {
+        $query = Pole::where('zone_id', $zoneId)->select([
+            'id',
+            'pole_name',
+            'latitude',
+            'longitude',
+            'restricted_radius',
+        ]);
+
+        if ($ignorePoleId) {
+            $query->where('id', '!=', $ignorePoleId);
+        }
+
+        $poles = $query->get();
+        foreach ($poles as $pole) {
+            $distance = GeoLocationService::haversineDistance(
+                $latitude,
+                $longitude,
+                $pole->latitude,
+                $pole->longitude
+            );
+            if ($distance < ($restrictedRadius + $pole->restricted_radius)) {
+                return $pole;
+            }
+        }
+
+        return null;
     }
 }
