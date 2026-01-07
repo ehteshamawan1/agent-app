@@ -29,14 +29,19 @@ class GeoLocationService
      */
     public static function isPointInPolygon($lat, $lng, $polygon)
     {
+        $normalized = self::normalizePolygon($polygon);
+        if (count($normalized) < 3) {
+            return false;
+        }
+
         $inside = false;
-        $count = count($polygon);
+        $count = count($normalized);
 
         for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
-            $xi = $polygon[$i]['lng'];
-            $yi = $polygon[$i]['lat'];
-            $xj = $polygon[$j]['lng'];
-            $yj = $polygon[$j]['lat'];
+            $xi = $normalized[$i]['lng'];
+            $yi = $normalized[$i]['lat'];
+            $xj = $normalized[$j]['lng'];
+            $yj = $normalized[$j]['lat'];
 
             $intersect = (($yi > $lat) != ($yj > $lat))
                 && ($lng < ($xj - $xi) * ($lat - $yi) / ($yj - $yi) + $xi);
@@ -47,6 +52,60 @@ class GeoLocationService
         }
 
         return $inside;
+    }
+
+    private static function normalizePolygon($polygon)
+    {
+        if (is_string($polygon)) {
+            $decoded = json_decode($polygon, true);
+            $polygon = is_array($decoded) ? $decoded : [];
+        } elseif ($polygon instanceof \Illuminate\Support\Collection) {
+            $polygon = $polygon->toArray();
+        }
+
+        if (!is_array($polygon)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($polygon as $point) {
+            if (is_object($point)) {
+                $point = (array) $point;
+            }
+
+            if (!is_array($point)) {
+                continue;
+            }
+
+            if (isset($point['lat'], $point['lng'])) {
+                $lat = (float) $point['lat'];
+                $lng = (float) $point['lng'];
+            } elseif (isset($point['latitude'], $point['longitude'])) {
+                $lat = (float) $point['latitude'];
+                $lng = (float) $point['longitude'];
+            } elseif (array_key_exists(0, $point) && array_key_exists(1, $point)) {
+                $first = (float) $point[0];
+                $second = (float) $point[1];
+                $firstLooksLat = $first >= -90 && $first <= 90;
+                $secondLooksLat = $second >= -90 && $second <= 90;
+                if ($firstLooksLat && !$secondLooksLat) {
+                    $lat = $first;
+                    $lng = $second;
+                } elseif ($secondLooksLat && !$firstLooksLat) {
+                    $lat = $second;
+                    $lng = $first;
+                } else {
+                    $lat = $first;
+                    $lng = $second;
+                }
+            } else {
+                continue;
+            }
+
+            $normalized[] = ['lat' => $lat, 'lng' => $lng];
+        }
+
+        return $normalized;
     }
 
     /**
