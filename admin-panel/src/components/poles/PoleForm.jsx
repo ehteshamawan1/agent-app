@@ -15,6 +15,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -52,6 +54,7 @@ const PoleForm = () => {
     restricted_radius: '500',
     land_owner_id: '',
     zone_id: '',
+    prevent_overlap: false,
   });
   const [mapCenter, setMapCenter] = useState({ lat: 31.5204, lng: 74.3587 }); // Default: Lahore
   const [errors, setErrors] = useState({});
@@ -173,6 +176,13 @@ const PoleForm = () => {
     if (name === 'zone_id') {
       fetchZoneBoundary(value);
     }
+  };
+  const handleToggleChange = (e) => {
+    const { name, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
   };
 
   const updateMapFromCoordinates = (latValue, lngValue) => {
@@ -303,7 +313,10 @@ const PoleForm = () => {
         await poleService.update(id, payload);
         toast.success('Pole updated successfully');
       } else {
-        await poleService.create(payload);
+        await poleService.create({
+          ...payload,
+          prevent_overlap: formData.prevent_overlap,
+        });
         toast.success('Pole created successfully');
       }
 
@@ -456,6 +469,21 @@ const PoleForm = () => {
                   sx={{ mb: 2 }}
                   inputProps={{ step: '1', min: '50', max: '5000' }}
                 />
+
+                {!isEditMode && (
+                  <FormControlLabel
+                    control={(
+                      <Switch
+                        checked={formData.prevent_overlap}
+                        onChange={handleToggleChange}
+                        name="prevent_overlap"
+                        color="primary"
+                      />
+                    )}
+                    label="Prevent overlap with existing poles"
+                    sx={{ mb: 2 }}
+                  />
+                )}
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
                   <InputLabel>Land Owner (Optional)</InputLabel>

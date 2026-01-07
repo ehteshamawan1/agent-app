@@ -137,21 +137,6 @@ const Login = () => {
               </Button>
             </form>
 
-            {/* Test Credentials Info */}
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                <strong>Test Credentials:</strong>
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Super Admin: superadmin@test.com
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Admin: admin1@test.com or admin2@test.com
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Password: password123
-              </Typography>
-            </Box>
           </CardContent>
         </Card>
       </Box>

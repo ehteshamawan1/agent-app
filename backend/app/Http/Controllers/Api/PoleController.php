@@ -42,6 +42,7 @@ class PoleController extends Controller
             'zone_id' => 'nullable|exists:zones,id',
             'land_owner_id' => 'nullable|exists:land_owners,id',
             'status' => 'in:active,inactive',
+            'prevent_overlap' => 'sometimes|boolean',
         ]);
 
         if ($user->role === 'admin') {
@@ -69,16 +70,18 @@ class PoleController extends Controller
             return response()->json(['message' => 'Pole coordinates must be within zone boundary'], 422);
         }
 
-        $overlapPole = $this->findOverlappingPole(
-            $validated['zone_id'],
-            $validated['latitude'],
-            $validated['longitude'],
-            $validated['restricted_radius']
-        );
-        if ($overlapPole) {
-            return response()->json([
-                'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
-            ], 422);
+        if ($request->boolean('prevent_overlap')) {
+            $overlapPole = $this->findOverlappingPole(
+                $validated['zone_id'],
+                $validated['latitude'],
+                $validated['longitude'],
+                $validated['restricted_radius']
+            );
+            if ($overlapPole) {
+                return response()->json([
+                    'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
+                ], 422);
+            }
         }
 
         $pole = Pole::create([
@@ -130,6 +133,7 @@ class PoleController extends Controller
             'restricted_radius' => 'sometimes|numeric|min:50|max:5000',
             'land_owner_id' => 'nullable|exists:land_owners,id',
             'status' => 'in:active,inactive',
+            'prevent_overlap' => 'sometimes|boolean',
         ]);
 
         // Validate new coordinates are in zone if changed
@@ -145,20 +149,22 @@ class PoleController extends Controller
             }
         }
 
-        $newLatitude = $validated['latitude'] ?? $pole->latitude;
-        $newLongitude = $validated['longitude'] ?? $pole->longitude;
-        $newRadius = $validated['restricted_radius'] ?? $pole->restricted_radius;
-        $overlapPole = $this->findOverlappingPole(
-            $pole->zone_id,
-            $newLatitude,
-            $newLongitude,
-            $newRadius,
-            $pole->id
-        );
-        if ($overlapPole) {
-            return response()->json([
-                'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
-            ], 422);
+        if ($request->boolean('prevent_overlap')) {
+            $newLatitude = $validated['latitude'] ?? $pole->latitude;
+            $newLongitude = $validated['longitude'] ?? $pole->longitude;
+            $newRadius = $validated['restricted_radius'] ?? $pole->restricted_radius;
+            $overlapPole = $this->findOverlappingPole(
+                $pole->zone_id,
+                $newLatitude,
+                $newLongitude,
+                $newRadius,
+                $pole->id
+            );
+            if ($overlapPole) {
+                return response()->json([
+                    'message' => "Pole radius overlaps with existing pole: {$overlapPole->pole_name}",
+                ], 422);
+            }
         }
 
         $pole->update($validated);
